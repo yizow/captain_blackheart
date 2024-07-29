@@ -43,7 +43,7 @@ class CaptainBlackheart(discord.Client):
         now = datetime.datetime.now()
         # 9 pm
         future = datetime.datetime(now.year, now.month, now.day, 21, 0)
-        if t.timestamp() > future.timestamp():
+        if now.timestamp() > future.timestamp():
             future += datetime.timedelta(days=1)
         pause.until(future)
 
