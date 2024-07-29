@@ -1,4 +1,5 @@
 import datetime
+import pause
 import sys
 
 import discord
@@ -38,6 +39,13 @@ class CaptainBlackheart(discord.Client):
         print("Monitoring channels: {channel.id}")
 
         self.last_poll = None
+
+        now = datetime.datetime.now()
+        # 9 pm
+        future = datetime.datetime(now.year, now.month, now.day, 21, 0)
+        if t.timestamp() > future.timestamp():
+            future += datetime.timedelta(days=1)
+        pause.until(future)
 
         self.check_weekday.start()
 
