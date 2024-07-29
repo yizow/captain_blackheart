@@ -15,8 +15,7 @@ X = "\U0000274C"
 
 NUM_PLAYER_QUORUM = 3
 
-
-TEXT_IN_THE_DARK_NAME = "testing"
+TEXT_IN_THE_DARK_NAME = "text-in-the-dark"
 
 BLADES_ROLE_NAME = "blades"
 
