@@ -36,7 +36,7 @@ class CaptainBlackheart(discord.Client):
                 if channel.name == TEXT_IN_THE_DARK_NAME:
                     self.channel = channel.id
 
-        print("Monitoring channels: {channel.id}")
+        print("Monitoring channels: {self.channel}")
 
         self.last_poll = None
 
