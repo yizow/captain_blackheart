@@ -45,17 +45,13 @@ class CaptainBlackheart(discord.Client):
     async def check_weekday(self):
         channel = self.get_channel(self.channel)
 
-        print("check_weekday")
-        print(self.blades_role)
         today = datetime.datetime.now()
-        print(today.weekday())
 
         # Thursday
         if today.weekday() == 4:
             await self.create_poll()
         # Monday
         elif today.weekday() == 0:
-            await self.create_poll()
             if self.last_poll == None:
                 pass
             else:
@@ -72,7 +68,6 @@ class CaptainBlackheart(discord.Client):
                     await channel.send(event_text)
 
     async def create_poll(self):
-        print("creating poll")
         channel = self.get_channel(self.channel)
 
         sessions = next_sessions()
