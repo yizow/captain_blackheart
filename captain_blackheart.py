@@ -19,6 +19,16 @@ TEXT_IN_THE_DARK_NAME = "text-in-the-dark"
 
 BLADES_ROLE_NAME = "blades"
 
+SESSION_DAY = 1  # Tuesday
+SESSION_HOUR = 18
+SESSION_MINUTE = 30
+
+POLL_DAY = 3  # Thursday
+POLL_HOUR = 10
+POLL_MINUTE = 0
+
+QUORUM_DAY = 0  # Monday
+
 
 class CaptainBlackheart(discord.Client):
     async def on_ready(self):
@@ -40,8 +50,7 @@ class CaptainBlackheart(discord.Client):
         self.last_poll = None
 
         now = datetime.datetime.now()
-        # 9 pm
-        future = datetime.datetime(now.year, now.month, now.day, 21, 0)
+        future = datetime.datetime(now.year, now.month, now.day, POLL_HOUR, POLL_MINUTE)
         if now.timestamp() > future.timestamp():
             future += datetime.timedelta(days=1)
         pause.until(future)
@@ -54,11 +63,10 @@ class CaptainBlackheart(discord.Client):
 
         today = datetime.datetime.now()
 
-        # Thursday
-        if today.weekday() == 4:
+        if today.weekday() == POLL_DAY:
             await self.create_poll()
         # Monday
-        elif today.weekday() == 0:
+        elif today.weekday() == QUORUM_DAY:
             if self.last_poll == None:
                 pass
             else:
@@ -96,14 +104,16 @@ None of these dates work {X}"""
 
 def next_sessions():
     """Returns next 3 Tuesdays"""
-    TUESDAY = 1
-
     today = datetime.datetime.today()
-    days_ahead = (TUESDAY - today.weekday()) % 7
+    session = datetime.datetime(
+        today.year, today.month, today.day, SESSION_HOUR, SESSION_MINUTE
+    )
+    days_ahead = (SESSION_DAY - today.weekday()) % 7
+
     return (
-        today + datetime.timedelta(days_ahead),
-        today + datetime.timedelta(days_ahead + 7),
-        today + datetime.timedelta(days_ahead + 14),
+        session + datetime.timedelta(days=days_ahead),
+        session + datetime.timedelta(days=days_ahead, weeks=1),
+        session + datetime.timedelta(days=days_ahead, weeks=2),
     )
 
 
