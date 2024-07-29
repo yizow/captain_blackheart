@@ -1,9 +1,10 @@
 import datetime
+import sys
 
 import discord
 from discord.ext import tasks
 
-import weekly_poll
+import os
 
 
 ONE = "\U00000031\U000020E3"
@@ -11,86 +12,114 @@ TWO = "\U00000032\U000020E3"
 THREE = "\U00000033\U000020E3"
 X = "\U0000274C"
 
-intents = discord.Intents.default()
-intents.message_content = True
+NUM_PLAYER_QUORUM = 3
 
-client = discord.Client(intents=intents)
-
-
-channel_ids = {}
 
 TEXT_IN_THE_DARK_NAME = "testing"
 
-pollCog = weekly_poll.WeeklyPoll()
+BLADES_ROLE_NAME = "blades"
 
 
-@client.event
-async def on_ready():
-    print(f"We have logged in as {client.user}")
+class CaptainBlackheart(discord.Client):
+    async def on_ready(self):
+        print(f"We have logged in as {self.user}")
 
-    for guild in client.guilds:
-        print(f"Guild: {guild.name}")
-        for channel in guild.channels:
-            if channel.name == TEXT_IN_THE_DARK_NAME:
-                channel_ids[TEXT_IN_THE_DARK_NAME] = channel.id
+        # Assuming we only have a single guild (server), single channel
+        for guild in self.guilds:
+            print(f"Guild: {guild.name}")
 
-    print("Monitoring channels:")
-    print(channel_ids)
+            self.blades_role = discord.utils.get(guild.roles, name=BLADES_ROLE_NAME)
+            print(self.blades_role)
 
-    check_weekday.start()
+            for channel in guild.channels:
+                if channel.name == TEXT_IN_THE_DARK_NAME:
+                    self.channel = channel.id
 
+        print("Monitoring channels: {channel.id}")
 
+        self.last_poll = None
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
+        self.check_weekday.start()
 
-    if message.content.startswith("$hello"):
-        await message.channel.send("Avast ye matey!")
+    @tasks.loop(hours=24)
+    async def check_weekday(self):
+        channel = self.get_channel(self.channel)
 
-""" Returns next 3 Tuesdays """
-def next_sessions():
-    TUESDAY = 1
+        print("check_weekday")
+        print(self.blades_role)
+        today = datetime.datetime.now()
+        print(today.weekday())
 
-    today = datetime.datetime.today()
-    days_ahead = (TUESDAY - today.weekday())% 7
-    return today + datetime.timedelta(days_ahead), today+datetime.timedelta(days_ahead + 7), today+datetime.timedelta(days_ahead +14)
+        # Thursday
+        if today.weekday() == 4:
+            await self.create_poll()
+        # Monday
+        elif today.weekday() == 0:
+            await self.create_poll()
+            if self.last_poll == None:
+                pass
+            else:
+                players = await count_reacts(self.last_poll)
+                session = next_sessions()[0]
+                if players >= NUM_PLAYER_QUORUM:
+                    event_text = f"""{self.blades_role.mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
+                    await channel.send(event_text)
+                else:
+                    await channel.send(
+                        f"""Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
+                    )
+                    event_text = f"""{self.blades_role.mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
+                    await channel.send(event_text)
 
+    async def create_poll(self):
+        print("creating poll")
+        channel = self.get_channel(self.channel)
 
-
-async def create_poll():
-    print("creating poll")
-    channel_id = channel_ids[TEXT_IN_THE_DARK_NAME]
-    channel = client.get_channel(channel_id)
-
-    sessions = next_sessions()
-    session_dates = [f"{session.month}/{session.day}" for session in sessions]
-    poll_text = f"""Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
+        sessions = next_sessions()
+        session_dates = [f"{session.month}/{session.day}" for session in sessions]
+        poll_text = f"""{self.blades_role.mention} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
 {session_dates[0]} {ONE}
 {session_dates[1]} {TWO}
 {session_dates[2]} {THREE}
 None of these dates work {X}"""
-    poll_message = await channel.send(poll_text)
+        poll_message = await channel.send(poll_text)
 
-    await poll_message.add_reaction(ONE)
-    await poll_message.add_reaction(TWO)
-    await poll_message.add_reaction(THREE)
-    await message.add_reaction(X)
+        await poll_message.add_reaction(ONE)
+        await poll_message.add_reaction(TWO)
+        await poll_message.add_reaction(THREE)
+        await poll_message.add_reaction(X)
 
-
-@tasks.loop(hours=24)
-async def check_weekday():
-    print("check_weekday")
-    today = datetime.datetime.now()
-    print(today.weekday())
-
-    # Thursday
-    if today.weekday() == 4:
-        await create_poll()
-    # Monday
-    elif today.weekday() == 0:
-        await create_poll()
+        self.last_poll = poll_message
 
 
+def next_sessions():
+    """Returns next 3 Tuesdays"""
+    TUESDAY = 1
+
+    today = datetime.datetime.today()
+    days_ahead = (TUESDAY - today.weekday()) % 7
+    return (
+        today + datetime.timedelta(days_ahead),
+        today + datetime.timedelta(days_ahead + 7),
+        today + datetime.timedelta(days_ahead + 14),
+    )
+
+
+async def count_reacts(message):
+    for reaction in message.reactions:
+        if str(reaction.emoji) == ONE:
+            return reaction.count
+    return 0
+
+
+TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
+TOKEN = os.environ.get(TOKEN_NAME, None)
+if not TOKEN:
+    sys.exit("No token found in environment")
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+client = CaptainBlackheart(intents=intents)
 client.run(TOKEN)
