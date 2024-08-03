@@ -29,6 +29,16 @@ POLL_MINUTE = 0
 
 QUORUM_DAY = 0  # Monday
 
+POLL_TEXT = f"""{self.blades_role.mention} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
+{session_dates[0]} {ONE}
+{session_dates[1]} {TWO}
+{session_dates[2]} {THREE}
+None of these dates work {X}"""
+
+EVENT_TEXT = f"""{self.blades_role.mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
+
+NO_QUORUM_TEXT = f"""Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
+
 
 class CaptainBlackheart(discord.Client):
     async def on_ready(self):
@@ -73,26 +83,16 @@ class CaptainBlackheart(discord.Client):
                 players = await count_reacts(self.last_poll)
                 session = next_sessions()[0]
                 if players >= NUM_PLAYER_QUORUM:
-                    event_text = f"""{self.blades_role.mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
-                    await channel.send(event_text)
+                    await channel.send(EVENT_TEXT)
                 else:
-                    await channel.send(
-                        f"""Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
-                    )
-                    event_text = f"""{self.blades_role.mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
-                    await channel.send(event_text)
+                    await channel.send(NO_QUORUM_TEXT)
 
     async def create_poll(self):
         channel = self.get_channel(self.channel)
 
         sessions = next_sessions()
         session_dates = [f"{session.month}/{session.day}" for session in sessions]
-        poll_text = f"""{self.blades_role.mention} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
-{session_dates[0]} {ONE}
-{session_dates[1]} {TWO}
-{session_dates[2]} {THREE}
-None of these dates work {X}"""
-        poll_message = await channel.send(poll_text)
+        poll_message = await channel.send(POLL_TEXT)
 
         await poll_message.add_reaction(ONE)
         await poll_message.add_reaction(TWO)
