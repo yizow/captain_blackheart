@@ -1,5 +1,5 @@
+import asyncio
 import datetime
-import pause
 import sys
 
 import discord
@@ -59,12 +59,6 @@ class CaptainBlackheart(discord.Client):
 
         self.last_poll = None
 
-        now = datetime.datetime.now()
-        future = datetime.datetime(now.year, now.month, now.day, POLL_HOUR, POLL_MINUTE)
-        if now.timestamp() > future.timestamp():
-            future += datetime.timedelta(days=1)
-        pause.until(future)
-
         self.check_weekday.start()
 
     @tasks.loop(hours=24)
@@ -87,6 +81,16 @@ class CaptainBlackheart(discord.Client):
                     )
                 else:
                     await channel.send(NO_QUORUM_TEXT.format(players=players))
+
+    @check_weekday.before_loop
+    async def before_check_weekday(self):
+        now = datetime.datetime.now()
+        future = datetime.datetime(now.year, now.month, now.day, POLL_HOUR, POLL_MINUTE)
+        if now.timestamp() > future.timestamp():
+            future += datetime.timedelta(days=1)
+
+        wait_seconds = (future - now).total_seconds()
+        await asyncio.sleep(wait_seconds)
 
     async def create_poll(self):
         channel = self.get_channel(self.channel)
