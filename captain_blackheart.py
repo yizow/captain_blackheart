@@ -29,15 +29,15 @@ POLL_MINUTE = 0
 
 QUORUM_DAY = 0  # Monday
 
-POLL_TEXT = f"""{self.blades_role.mention} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
+POLL_TEXT = """{mention} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
 {session_dates[0]} {ONE}
 {session_dates[1]} {TWO}
 {session_dates[2]} {THREE}
 None of these dates work {X}"""
 
-EVENT_TEXT = f"""{self.blades_role.mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
+EVENT_TEXT = """{mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
 
-NO_QUORUM_TEXT = f"""Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
+NO_QUORUM_TEXT = """Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
 
 
 class CaptainBlackheart(discord.Client):
@@ -75,24 +75,27 @@ class CaptainBlackheart(discord.Client):
 
         if today.weekday() == POLL_DAY:
             await self.create_poll()
-        # Monday
         elif today.weekday() == QUORUM_DAY:
             if self.last_poll == None:
                 pass
             else:
                 players = await count_reacts(self.last_poll)
-                session = next_sessions()[0]
+                session = self.next_sessions()[0]
                 if players >= NUM_PLAYER_QUORUM:
-                    await channel.send(EVENT_TEXT)
+                    await channel.send(
+                        EVENT_TEXT.format(mention=self.blades_role.mention)
+                    )
                 else:
-                    await channel.send(NO_QUORUM_TEXT)
+                    await channel.send(NO_QUORUM_TEXT.format(players=players))
 
     async def create_poll(self):
         channel = self.get_channel(self.channel)
 
-        sessions = next_sessions()
+        sessions = self.next_sessions()
         session_dates = [f"{session.month}/{session.day}" for session in sessions]
-        poll_message = await channel.send(POLL_TEXT)
+        poll_message = await channel.send(
+            POLL_TEXT.format(mention=self.blades_role.mention)
+        )
 
         await poll_message.add_reaction(ONE)
         await poll_message.add_reaction(TWO)
@@ -101,27 +104,26 @@ class CaptainBlackheart(discord.Client):
 
         self.last_poll = poll_message
 
+    async def count_reacts(self):
+        message = self.last_poll
+        for reaction in message.reactions:
+            if str(reaction.emoji) == ONE:
+                return reaction.count
+        return 0
 
-def next_sessions():
-    """Returns next 3 Tuesdays"""
-    today = datetime.datetime.today()
-    session = datetime.datetime(
-        today.year, today.month, today.day, SESSION_HOUR, SESSION_MINUTE
-    )
-    days_ahead = (SESSION_DAY - today.weekday()) % 7
+    def next_sessions(self):
+        """Returns the dates of the next 3 sessions"""
+        today = datetime.datetime.today()
+        session = datetime.datetime(
+            today.year, today.month, today.day, SESSION_HOUR, SESSION_MINUTE
+        )
+        days_ahead = (SESSION_DAY - today.weekday()) % 7
 
-    return (
-        session + datetime.timedelta(days=days_ahead),
-        session + datetime.timedelta(days=days_ahead, weeks=1),
-        session + datetime.timedelta(days=days_ahead, weeks=2),
-    )
-
-
-async def count_reacts(message):
-    for reaction in message.reactions:
-        if str(reaction.emoji) == ONE:
-            return reaction.count
-    return 0
+        return (
+            session + datetime.timedelta(days=days_ahead),
+            session + datetime.timedelta(days=days_ahead, weeks=1),
+            session + datetime.timedelta(days=days_ahead, weeks=2),
+        )
 
 
 TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
