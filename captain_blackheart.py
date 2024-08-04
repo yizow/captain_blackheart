@@ -1,12 +1,11 @@
 import argparse
 import asyncio
 import datetime
+import os
 import sys
 
 import discord
 from discord.ext import tasks
-
-import os
 
 
 ONE = "\U00000031\U000020E3"
@@ -14,7 +13,7 @@ TWO = "\U00000032\U000020E3"
 THREE = "\U00000033\U000020E3"
 X = "\U0000274C"
 
-NUM_PLAYER_QUORUM = 3
+NUM_PLAYER_QUORUM = 1
 
 TEXT_IN_THE_DARK_NAME = "text-in-the-dark"
 TESTING_NAME = "testing"
@@ -31,10 +30,10 @@ POLL_MINUTE = 0
 
 QUORUM_DAY = 0  # Monday
 
-POLL_TEXT = """{mention} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
-{session_dates[0]} {ONE}
-{session_dates[1]} {TWO}
-{session_dates[2]} {THREE}
+POLL_TEXT = f"""{{mention}} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
+{{session_dates[0]}} {ONE}
+{{session_dates[1]}} {TWO}
+{{session_dates[2]}} {THREE}
 None of these dates work {X}"""
 
 EVENT_TEXT = """{mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
@@ -43,11 +42,14 @@ NO_QUORUM_TEXT = """Arrr, not enough scallywags for the crew! Only {players} of 
 
 TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
 
+COMMAND_PREFIX = "!"
+
 
 class CaptainBlackheart(discord.Client):
     def __init__(self, intents, args):
         super().__init__(intents=intents)
         self.testing = args.testing
+        self.COMMANDS = {"poll": self.create_poll, "quorum": self.count_quorum}
 
     async def on_ready(self):
         print(f"We have logged in as {self.user}")
@@ -66,9 +68,9 @@ class CaptainBlackheart(discord.Client):
 
             for channel in guild.channels:
                 if channel.name == channel_name:
-                    self.channel = channel.id
+                    self.channel = channel
 
-        print(f"Monitoring channel {channel_name}: {self.channel}")
+        print(f"Monitoring channel {self.channel.name}: {self.channel.id}")
 
         self.last_poll = None
 
@@ -76,24 +78,12 @@ class CaptainBlackheart(discord.Client):
 
     @tasks.loop(hours=24)
     async def check_weekday(self):
-        channel = self.get_channel(self.channel)
-
         today = datetime.datetime.now()
 
         if today.weekday() == POLL_DAY:
             await self.create_poll()
         elif today.weekday() == QUORUM_DAY:
-            if self.last_poll == None:
-                pass
-            else:
-                players = await count_reacts(self.last_poll)
-                session = self.next_sessions()[0]
-                if players >= NUM_PLAYER_QUORUM:
-                    await channel.send(
-                        EVENT_TEXT.format(mention=self.blades_role.mention)
-                    )
-                else:
-                    await channel.send(NO_QUORUM_TEXT.format(players=players))
+            await self.count_quorum()
 
     @check_weekday.before_loop
     async def before_check_weekday(self):
@@ -106,12 +96,12 @@ class CaptainBlackheart(discord.Client):
         await asyncio.sleep(wait_seconds)
 
     async def create_poll(self):
-        channel = self.get_channel(self.channel)
-
         sessions = self.next_sessions()
         session_dates = [f"{session.month}/{session.day}" for session in sessions]
-        poll_message = await channel.send(
-            POLL_TEXT.format(mention=self.blades_role.mention)
+        poll_message = await self.channel.send(
+            POLL_TEXT.format(
+                mention=self.blades_role.mention, session_dates=session_dates
+            )
         )
 
         await poll_message.add_reaction(ONE)
@@ -122,11 +112,25 @@ class CaptainBlackheart(discord.Client):
         self.last_poll = poll_message
 
     async def count_reacts(self):
-        message = self.last_poll
+        message = await self.channel.fetch_message(self.last_poll.id)
         for reaction in message.reactions:
             if str(reaction.emoji) == ONE:
-                return reaction.count
+                # -1 because we subtract our own vote
+                return reaction.count - 1
         return 0
+
+    async def count_quorum(self):
+        if self.last_poll == None:
+            pass
+        else:
+            players = await self.count_reacts()
+            session = self.next_sessions()[0]
+            if players >= NUM_PLAYER_QUORUM:
+                await self.channel.send(
+                    EVENT_TEXT.format(mention=self.blades_role.mention, session=session)
+                )
+            else:
+                await self.channel.send(NO_QUORUM_TEXT.format(players=players))
 
     def next_sessions(self):
         """Returns the dates of the next 3 sessions"""
@@ -141,6 +145,18 @@ class CaptainBlackheart(discord.Client):
             session + datetime.timedelta(days=days_ahead, weeks=1),
             session + datetime.timedelta(days=days_ahead, weeks=2),
         )
+
+    async def on_message(self, message):
+        if self.channel != message.channel:
+            return
+        if not message.content.startswith(COMMAND_PREFIX):
+            return
+
+        command = message.content[len(COMMAND_PREFIX) :]
+        action = self.COMMANDS.get(command, None)
+
+        if action:
+            await action()
 
 
 if __name__ == "__main__":
