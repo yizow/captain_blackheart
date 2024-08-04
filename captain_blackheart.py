@@ -13,7 +13,7 @@ TWO = "\U00000032\U000020E3"
 THREE = "\U00000033\U000020E3"
 X = "\U0000274C"
 
-NUM_PLAYER_QUORUM = 1
+NUM_PLAYER_QUORUM = 3
 
 TEXT_IN_THE_DARK_NAME = "text-in-the-dark"
 TESTING_NAME = "testing"
@@ -48,8 +48,10 @@ COMMAND_PREFIX = "!"
 class CaptainBlackheart(discord.Client):
     def __init__(self, intents, args):
         super().__init__(intents=intents)
-        self.testing = args.testing
         self.COMMANDS = {"poll": self.create_poll, "quorum": self.count_quorum}
+
+        self.testing = args.testing
+        self.poll = args.poll
 
     async def on_ready(self):
         print(f"We have logged in as {self.user}")
@@ -70,9 +72,15 @@ class CaptainBlackheart(discord.Client):
                 if channel.name == channel_name:
                     self.channel = channel
 
-        print(f"Monitoring channel {self.channel.name}: {self.channel.id}")
-
         self.last_poll = None
+        if args.poll:
+            try:
+                self.last_poll = await self.channel.fetch_message(self.poll)
+                print("Continuing from last poll message")
+            except discord.NotFound:
+                print("Could not find last poll message, starting fresh")
+
+        print(f"Monitoring channel {self.channel.name}: {self.channel.id}")
 
         self.check_weekday.start()
 
@@ -166,6 +174,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("-t", "--testing", action="store_true")
+    parser.add_argument(
+        "-p",
+        "--poll",
+        type=int,
+        help="Message ID of the last poll, if you needed to restart the bot",
+    )
     args = parser.parse_args()
 
     token = os.environ.get(TOKEN_NAME, None)
