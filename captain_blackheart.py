@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import datetime
 import sys
@@ -16,6 +17,7 @@ X = "\U0000274C"
 NUM_PLAYER_QUORUM = 3
 
 TEXT_IN_THE_DARK_NAME = "text-in-the-dark"
+TESTING_NAME = "testing"
 
 BLADES_ROLE_NAME = "blades"
 
@@ -41,7 +43,12 @@ NO_QUORUM_TEXT = """Arrr, not enough scallywags for the crew! Only {players} of 
 
 TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
 
+
 class CaptainBlackheart(discord.Client):
+    def __init__(self, intents, args):
+        super().__init__(intents=intents)
+        self.testing = args.testing
+
     async def on_ready(self):
         print(f"We have logged in as {self.user}")
 
@@ -52,11 +59,16 @@ class CaptainBlackheart(discord.Client):
             self.blades_role = discord.utils.get(guild.roles, name=BLADES_ROLE_NAME)
             print(self.blades_role)
 
+            if self.testing:
+                channel_name = TESTING_NAME
+            else:
+                channel_name = TEXT_IN_THE_DARK_NAME
+
             for channel in guild.channels:
-                if channel.name == TEXT_IN_THE_DARK_NAME:
+                if channel.name == channel_name:
                     self.channel = channel.id
 
-        print("Monitoring channels: {self.channel}")
+        print(f"Monitoring channel {channel_name}: {self.channel}")
 
         self.last_poll = None
 
@@ -132,13 +144,20 @@ class CaptainBlackheart(discord.Client):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="CaptainBlackheart",
+        description="Discord bot to poll and schedule sessions",
+    )
+
+    parser.add_argument("-t", "--testing", action="store_true")
+    args = parser.parse_args()
+
     token = os.environ.get(TOKEN_NAME, None)
     if not token:
         sys.exit("No token found in environment")
 
-
     intents = discord.Intents.default()
     intents.message_content = True
 
-    client = CaptainBlackheart(intents=intents)
+    client = CaptainBlackheart(intents, args)
     client.run(token)
