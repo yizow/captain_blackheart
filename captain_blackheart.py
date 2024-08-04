@@ -39,6 +39,7 @@ EVENT_TEXT = """{mention} Arrr, we be settin' sail for our game this Tuesday, {s
 
 NO_QUORUM_TEXT = """Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
 
+TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
 
 class CaptainBlackheart(discord.Client):
     async def on_ready(self):
@@ -130,14 +131,14 @@ class CaptainBlackheart(discord.Client):
         )
 
 
-TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
-TOKEN = os.environ.get(TOKEN_NAME, None)
-if not TOKEN:
-    sys.exit("No token found in environment")
+if __name__ == "__main__":
+    token = os.environ.get(TOKEN_NAME, None)
+    if not token:
+        sys.exit("No token found in environment")
 
 
-intents = discord.Intents.default()
-intents.message_content = True
+    intents = discord.Intents.default()
+    intents.message_content = True
 
-client = CaptainBlackheart(intents=intents)
-client.run(TOKEN)
+    client = CaptainBlackheart(intents=intents)
+    client.run(token)
