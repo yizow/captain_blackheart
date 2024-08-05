@@ -27,10 +27,10 @@ If there is currently a scheduled session, Captain Blackheart will instead send 
 ## Commands
 Captain Blackheart supports some commands to manually trigger polls and quorum. By default, the command prefix is `!`
 
-- !poll: Post a new poll. This won't do anything if there is currently a scheduled session.
-- !quorum: Count for quorum. If there is currently a scheduled session, this will send out a reminder.
-- !reset: Clear memory of existing polls / scheduled sessions.
-- !remember {message_id}: Sets the given message_id as the last poll i.e. Captain Blackheart will count emoji reacts on this message.
+- `!poll`: Post a new poll. This won't do anything if there is currently a scheduled session.
+- `!quorum`: Count for quorum. If there is currently a scheduled session, this will send out a reminder.
+- `!reset`: Clear memory of existing polls / scheduled sessions.
+- `!remember {message_id}`: Sets the given message_id as the last poll i.e. Captain Blackheart will count emoji reacts on this message.
 
 # Installation
 
