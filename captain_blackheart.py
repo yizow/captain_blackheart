@@ -12,6 +12,7 @@ ONE = "\U00000031\U000020E3"
 TWO = "\U00000032\U000020E3"
 THREE = "\U00000033\U000020E3"
 X = "\U0000274C"
+REACTIONS = [ONE, TWO, THREE, X]
 
 NUM_PLAYER_QUORUM = 3
 
@@ -31,12 +32,12 @@ POLL_MINUTE = 0
 QUORUM_DAY = 0  # Monday
 
 POLL_TEXT = f"""{{mention}} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
-{{session_dates[0]}} {ONE}
-{{session_dates[1]}} {TWO}
-{{session_dates[2]}} {THREE}
+{{session_dates[0]}} {REACTIONS[0]}
+{{session_dates[1]}} {REACTIONS[1]}
+{{session_dates[2]}} {REACTIONS[2]}
 None of these dates work {X}"""
 
-EVENT_TEXT = """{mention} Arrr, we be settin' sail for our game this Tuesday, {session.month}/{session.day}. Shapern yer cutlasses and reader yer wits -- time to plot our next cunning caper!"""
+EVENT_TEXT = """Arrr, we be settin' sail for our game {demonstrative} Tuesday, {session.month}/{session.day}. Sharpen yer cutlasses and ready yer wits -- time to plot our next cunning caper!"""
 
 NO_QUORUM_TEXT = """Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
 
@@ -48,7 +49,9 @@ COMMAND_PREFIX = "!"
 class CaptainBlackheart(discord.Client):
     def __init__(self, intents, args):
         super().__init__(intents=intents)
-        self.COMMANDS = {"poll": self.create_poll, "quorum": self.count_quorum}
+        self.COMMANDS = {"poll": self.create_poll, "quorum": self.count_quorum, "reset": self.reset}
+
+        self.scheduled_session = None
 
         self.testing = args.testing
         self.poll = args.poll
@@ -104,6 +107,11 @@ class CaptainBlackheart(discord.Client):
         await asyncio.sleep(wait_seconds)
 
     async def create_poll(self):
+        # Already have a scheduled_session, no need to poll again
+        # if self.scheduled_session and self.scheduled_session > datetime.datetime.now():
+        if self.scheduled_session and False:
+            return
+
         sessions = self.next_sessions()
         session_dates = [f"{session.month}/{session.day}" for session in sessions]
         poll_message = await self.channel.send(
@@ -112,33 +120,48 @@ class CaptainBlackheart(discord.Client):
             )
         )
 
-        await poll_message.add_reaction(ONE)
-        await poll_message.add_reaction(TWO)
-        await poll_message.add_reaction(THREE)
-        await poll_message.add_reaction(X)
+        for reaction in REACTIONS:
+            await poll_message.add_reaction(reaction)
 
         self.last_poll = poll_message
+        self.scheduled_session = None
 
     async def count_reacts(self):
         message = await self.channel.fetch_message(self.last_poll.id)
+        reactions = [0, 0, 0, 0]
+
         for reaction in message.reactions:
-            if str(reaction.emoji) == ONE:
+            try:
+                index = REACTIONS.index(str(reaction.emoji))
                 # -1 because we subtract our own vote
-                return reaction.count - 1
-        return 0
+                reactions[index] = reaction.count - 1
+            except ValueError:
+                pass
+
+        return reactions
 
     async def count_quorum(self):
         if self.last_poll == None:
-            pass
-        else:
-            players = await self.count_reacts()
-            session = self.next_sessions()[0]
-            if players >= NUM_PLAYER_QUORUM:
-                await self.channel.send(
-                    EVENT_TEXT.format(mention=self.blades_role.mention, session=session)
-                )
-            else:
-                await self.channel.send(NO_QUORUM_TEXT.format(players=players))
+            return
+
+        players = await self.count_reacts()
+        # drop the "x" no-vote
+        players = players[:-1]
+
+        # Send out a reminder, but only @mention if its happening this week
+        if self.scheduled_session:
+            imminent = is_imminent(self.scheduled_session)
+            await self.send_event_text(mention=imminent)
+            return
+
+        for num_players, session in zip(players, self.next_sessions()):
+            if num_players >= NUM_PLAYER_QUORUM:
+                self.scheduled_session = session
+                await self.send_event_text(mention=True)
+                break
+
+        if self.scheduled_session == None:
+            await self.channel.send(NO_QUORUM_TEXT.format(players=max(players)))
 
     def next_sessions(self):
         """Returns the dates of the next 3 sessions"""
@@ -165,6 +188,28 @@ class CaptainBlackheart(discord.Client):
 
         if action:
             await action()
+
+    async def send_event_text(self, mention=False):
+        text = EVENT_TEXT.format(
+            session=self.scheduled_session,
+            demonstrative="this" if is_imminent(self.scheduled_session) else "on",
+        )
+
+        if mention:
+            text = self.blades_role.mention + " " + text
+
+        await self.channel.send(text)
+
+    async def reset(self):
+        print("Manually resetting poll info")
+        self.last_poll = None
+        self.scheduled_session = None
+
+
+def is_imminent(session):
+    today = datetime.datetime.today()
+    delta = session - today
+    return delta <= datetime.timedelta(days=4)
 
 
 if __name__ == "__main__":
