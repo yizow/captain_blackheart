@@ -24,6 +24,12 @@ POLL_MINUTE = 0
 
 QUORUM_DAY = 0  # Monday
 
+ONE = "\U00000031\U000020E3"
+TWO = "\U00000032\U000020E3"
+THREE = "\U00000033\U000020E3"
+X = "\U0000274C"
+REACTIONS = [ONE, TWO, THREE, X]
+
 POLL_TEXT = f"""{{mention}} Arrr, when be our next plunderin' session? Ye best be respondin' by Saturday, if ye can, or by Sunday at the latest! This'll help me chart me course for the week ahead, arrr! 🏴‍☠️
 {{session_dates[0]}} {REACTIONS[0]}
 {{session_dates[1]}} {REACTIONS[1]}
@@ -40,13 +46,6 @@ COMMAND_PREFIX = "!"
 TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
 
 
-ONE = "\U00000031\U000020E3"
-TWO = "\U00000032\U000020E3"
-THREE = "\U00000033\U000020E3"
-X = "\U0000274C"
-REACTIONS = [ONE, TWO, THREE, X]
-
-
 TESTING_NAME = "testing"
 
 
@@ -54,9 +53,10 @@ class CaptainBlackheart(discord.Client):
     def __init__(self, intents, args):
         super().__init__(intents=intents)
         self.COMMANDS = {
-            "poll": self.create_poll,
-            "quorum": self.count_quorum,
-            "reset": self.reset,
+            "poll": (self.create_poll, 0),
+            "quorum": (self.count_quorum, 0),
+            "reset": (self.reset, 0),
+            "remember": (self.remember, 1),
         }
 
         self.scheduled_session = None
@@ -190,10 +190,21 @@ class CaptainBlackheart(discord.Client):
         if not message.content.startswith(COMMAND_PREFIX):
             return
 
-        command = message.content[len(COMMAND_PREFIX) :]
-        action = self.COMMANDS.get(command, None)
+        command = message.content.strip()[len(COMMAND_PREFIX) :].split(" ")
+        action, num_args = self.COMMANDS.get(command[0], (None, None))
 
-        if action:
+        if not action:
+            return
+
+        # +1 for the command itself
+        if len(command) != (num_args + 1):
+            print(f"Invalid command: {command}")
+            return
+
+        args = command[1:]
+        if len(args) > 0:
+            await action(*args)
+        else:
             await action()
 
     async def send_event_text(self, mention=False):
@@ -211,6 +222,13 @@ class CaptainBlackheart(discord.Client):
         print("Manually resetting poll info")
         self.last_poll = None
         self.scheduled_session = None
+
+    async def remember(self, message_id):
+        try:
+            self.last_poll = await self.channel.fetch_message(int(message_id))
+            print("Continuing from last poll message")
+        except discord.NotFound:
+            print("Could not find last poll message, starting fresh")
 
 
 def is_imminent(session):
