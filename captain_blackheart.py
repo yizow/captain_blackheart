@@ -8,19 +8,12 @@ import discord
 from discord.ext import tasks
 
 
-ONE = "\U00000031\U000020E3"
-TWO = "\U00000032\U000020E3"
-THREE = "\U00000033\U000020E3"
-X = "\U0000274C"
-REACTIONS = [ONE, TWO, THREE, X]
+BLADES_ROLE_NAME = "blades"
+TEXT_IN_THE_DARK_NAME = "text-in-the-dark"
 
 NUM_PLAYER_QUORUM = 3
 
-TEXT_IN_THE_DARK_NAME = "text-in-the-dark"
-TESTING_NAME = "testing"
-
-BLADES_ROLE_NAME = "blades"
-
+# Days of the week start with Monday=0 and increment through Sunday=6
 SESSION_DAY = 1  # Tuesday
 SESSION_HOUR = 18
 SESSION_MINUTE = 30
@@ -41,15 +34,30 @@ EVENT_TEXT = """Arrr, we be settin' sail for our game {demonstrative} Tuesday, {
 
 NO_QUORUM_TEXT = """Arrr, not enough scallywags for the crew! Only {players} of ye have answered the call. We be needin' more hands on deck!"""
 
-TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
 
 COMMAND_PREFIX = "!"
+
+TOKEN_NAME = "CAPTAIN_BLACKHEART_TOKEN"
+
+
+ONE = "\U00000031\U000020E3"
+TWO = "\U00000032\U000020E3"
+THREE = "\U00000033\U000020E3"
+X = "\U0000274C"
+REACTIONS = [ONE, TWO, THREE, X]
+
+
+TESTING_NAME = "testing"
 
 
 class CaptainBlackheart(discord.Client):
     def __init__(self, intents, args):
         super().__init__(intents=intents)
-        self.COMMANDS = {"poll": self.create_poll, "quorum": self.count_quorum, "reset": self.reset}
+        self.COMMANDS = {
+            "poll": self.create_poll,
+            "quorum": self.count_quorum,
+            "reset": self.reset,
+        }
 
         self.scheduled_session = None
 
