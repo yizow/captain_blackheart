@@ -1,6 +1,6 @@
 import argparse
 import asyncio
-import datetime
+from datetime import datetime, timedelta
 import os
 import sys
 
@@ -97,7 +97,7 @@ class CaptainBlackheart(discord.Client):
 
     @tasks.loop(hours=24)
     async def check_weekday(self):
-        today = datetime.datetime.now()
+        today = datetime.now()
 
         if today.weekday() == POLL_DAY:
             await self.create_poll()
@@ -106,18 +106,17 @@ class CaptainBlackheart(discord.Client):
 
     @check_weekday.before_loop
     async def before_check_weekday(self):
-        now = datetime.datetime.now()
-        future = datetime.datetime(now.year, now.month, now.day, POLL_HOUR, POLL_MINUTE)
+        now = datetime.now()
+        future = datetime(now.year, now.month, now.day, POLL_HOUR, POLL_MINUTE)
         if now.timestamp() > future.timestamp():
-            future += datetime.timedelta(days=1)
+            future += timedelta(days=1)
 
         wait_seconds = (future - now).total_seconds()
         await asyncio.sleep(wait_seconds)
 
     async def create_poll(self):
         # Already have a scheduled_session, no need to poll again
-        # if self.scheduled_session and self.scheduled_session > datetime.datetime.now():
-        if self.scheduled_session and False:
+        if self.scheduled_session and self.scheduled_session > datetime.now():
             return
 
         sessions = self.next_sessions()
@@ -173,16 +172,16 @@ class CaptainBlackheart(discord.Client):
 
     def next_sessions(self):
         """Returns the dates of the next 3 sessions"""
-        today = datetime.datetime.today()
-        session = datetime.datetime(
+        today = datetime.today()
+        session = datetime(
             today.year, today.month, today.day, SESSION_HOUR, SESSION_MINUTE
         )
         days_ahead = (SESSION_DAY - today.weekday()) % 7
 
         return (
-            session + datetime.timedelta(days=days_ahead),
-            session + datetime.timedelta(days=days_ahead, weeks=1),
-            session + datetime.timedelta(days=days_ahead, weeks=2),
+            session + timedelta(days=days_ahead),
+            session + timedelta(days=days_ahead, weeks=1),
+            session + timedelta(days=days_ahead, weeks=2),
         )
 
     async def on_message(self, message):
@@ -215,9 +214,9 @@ class CaptainBlackheart(discord.Client):
 
 
 def is_imminent(session):
-    today = datetime.datetime.today()
+    today = datetime.today()
     delta = session - today
-    return delta <= datetime.timedelta(days=4)
+    return delta <= timedelta(days=4)
 
 
 if __name__ == "__main__":
